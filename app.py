@@ -3,67 +3,159 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import networkx as nx
+from collections import Counter
+import ast, re
 
-st.set_page_config(page_title="Analisis Pinjol Twitter", layout="wide")
-st.title("📊 Analisis Tweet Pinjaman Online (Pinjol)")
+st.set_page_config(page_title="Dashboard Pinjol - Kelompok 10", layout="wide")
+st.title("🔍 Deteksi Dini & Pola Penyebaran Hoax Pinjol Ilegal")
+st.markdown("**Analisis Teks Media Sosial | Universitas Budi Luhur**")
 st.markdown("---")
 
-# ======= TABS =======
-tab1, tab2, tab3, tab4 = st.tabs(["📁 Data", "💬 Sentimen", "🧠 LDA Topik", "🕸️ SNA"])
+# Load data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("Pinjol_inset_labeled_final.csv")
+    df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce")
+    return df
+
+df = load_data()
+
+# ======= RINGKASAN =======
+st.subheader("📊 Ringkasan Dataset")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Tweet", len(df))
+col2.metric("Tweet Negatif", len(df[df["inset_sentiment"]=="Negative"]))
+col3.metric("Tweet Positif", len(df[df["inset_sentiment"]=="Positive"]))
+col4.metric("Tweet Netral", len(df[df["inset_sentiment"]=="Neutral"]))
+
+# Klasifikasi Promosi Bot vs Korban
+def classify_type(text):
+    if isinstance(text, str):
+        promo_keywords = ["pinjam", "dana cepat", "proses cepat", "hubungi", "wa", "whatsapp", "solusi", "terpercaya", "bunga rendah", "cair"]
+        korban_keywords = ["teror", "ancam", "malu", "tagih", "sebar", "data", "galbay", "gagal bayar", "tipu", "modus", "ilegal", "penipuan", "korban"]
+        text_lower = text.lower()
+        promo = sum(1 for k in promo_keywords if k in text_lower)
+        korban = sum(1 for k in korban_keywords if k in text_lower)
+        if promo > korban: return "🤖 Promosi/Bot Pinjol"
+        elif korban > promo: return "😢 Keluhan Korban"
+        else: return "📰 Informasi/Netral"
+    return "📰 Informasi/Netral"
+
+df["kategori"] = df["full_text"].apply(classify_type)
+
+st.markdown("---")
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📁 Data", "🏷️ Klasifikasi", "💬 Sentimen", "🧠 LDA Topik", "🕸️ SNA"])
 
 # ======= TAB 1: DATA =======
 with tab1:
     st.header("Dataset Tweet Pinjol")
-    try:
-        df = pd.read_csv("Pinjol_preprocessed.csv")
-        st.write(f"Total tweet: {len(df)}")
-        st.dataframe(df.head(100))
-    except:
-        st.warning("File CSV tidak ditemukan.")
+    st.write(f"Total: **{len(df)} tweet** | Periode: {df['created_at'].min().date()} s/d {df['created_at'].max().date()}")
+    search = st.text_input("🔎 Cari kata kunci di tweet:")
+    if search:
+        filtered = df[df["full_text"].str.contains(search, case=False, na=False)]
+        st.dataframe(filtered[["created_at","full_text","inset_sentiment","inset_score"]].reset_index(drop=True))
+        st.write(f"Ditemukan: {len(filtered)} tweet")
+    else:
+        st.dataframe(df[["created_at","full_text","inset_sentiment","inset_score","kategori"]].reset_index(drop=True))
 
-# ======= TAB 2: SENTIMEN =======
+# ======= TAB 2: KLASIFIKASI =======
 with tab2:
-    st.header("Analisis Sentimen")
-    try:
-        df = pd.read_csv("Pinjol_inset_labeled_final.csv")
-        if "sentiment" in df.columns or "label" in df.columns:
-            col = "sentiment" if "sentiment" in df.columns else "label"
-            count = df[col].value_counts()
-            st.bar_chart(count)
-            st.dataframe(df[[col]].value_counts().reset_index())
-        else:
-            st.dataframe(df.head(50))
-    except:
-        st.warning("File sentimen tidak ditemukan.")
+    st.header("🏷️ Klasifikasi: Promosi Bot vs Keluhan Korban")
+    col1, col2 = st.columns(2)
+    with col1:
+        kat_count = df["kategori"].value_counts()
+        fig, ax = plt.subplots()
+        ax.pie(kat_count.values, labels=kat_count.index, autopct="%1.1f%%", colors=["#ff6b6b","#ffd93d","#6bcb77"])
+        ax.set_title("Komposisi Kategori Tweet")
+        st.pyplot(fig)
+    with col2:
+        st.bar_chart(kat_count)
+    
+    st.subheader("Filter berdasarkan Kategori")
+    pilihan = st.selectbox("Pilih kategori:", df["kategori"].unique())
+    filtered_kat = df[df["kategori"]==pilihan]
+    st.write(f"Jumlah: **{len(filtered_kat)} tweet**")
+    st.dataframe(filtered_kat[["created_at","full_text","inset_sentiment"]].reset_index(drop=True))
 
-# ======= TAB 3: LDA =======
+# ======= TAB 3: SENTIMEN =======
 with tab3:
-    st.header("Analisis Topik LDA")
+    st.header("💬 Analisis Sentimen (INSET Lexicon)")
+    col1, col2 = st.columns(2)
+    with col1:
+        sent_count = df["inset_sentiment"].value_counts()
+        fig, ax = plt.subplots()
+        colors = {"Negative":"#ff6b6b","Positive":"#6bcb77","Neutral":"#ffd93d"}
+        ax.pie(sent_count.values, labels=sent_count.index, autopct="%1.1f%%",
+               colors=[colors.get(s,"#aaa") for s in sent_count.index])
+        ax.set_title("Distribusi Sentimen Tweet Pinjol")
+        st.pyplot(fig)
+    with col2:
+        st.subheader("Jumlah per Sentimen")
+        st.bar_chart(sent_count)
+    
+    st.subheader("📈 Tren Sentimen per Hari")
+    df["tanggal"] = df["created_at"].dt.date
+    tren = df.groupby(["tanggal","inset_sentiment"]).size().unstack(fill_value=0)
+    st.line_chart(tren)
+    
+    st.subheader("📊 Distribusi Skor INSET")
+    fig2, ax2 = plt.subplots()
+    ax2.hist(df["inset_score"].dropna(), bins=30, color="#4ecdc4", edgecolor="black")
+    ax2.set_xlabel("Skor INSET")
+    ax2.set_ylabel("Jumlah Tweet")
+    ax2.set_title("Histogram Skor Sentimen")
+    st.pyplot(fig2)
+
+# ======= TAB 4: LDA =======
+with tab4:
+    st.header("🧠 Analisis Topik LDA")
     try:
         df_lda = pd.read_csv("hasil_lda_datacrawlmix.csv")
+        st.write(f"Total data LDA: **{len(df_lda)} baris**")
+        if "dominant_topic" in df_lda.columns:
+            topic_count = df_lda["dominant_topic"].value_counts().sort_index()
+            st.subheader("Distribusi Topik")
+            st.bar_chart(topic_count)
         st.dataframe(df_lda.head(50))
     except:
-        pass
-    for img_file in ["01_lda_elbow.png","02_lda_topwords.png","03_lda_distribution.png","04_lda_wordcloud.png","05_lda_dashboard.png"]:
+        st.info("File LDA tersedia dalam bentuk visualisasi gambar:")
+    
+    for nama, file in [("Elbow Perplexity","01_lda_elbow.png"),
+                        ("Top Words per Topik","02_lda_topwords.png"),
+                        ("Distribusi Topik","03_lda_distribution.png"),
+                        ("Word Cloud","04_lda_wordcloud.png"),
+                        ("Dashboard LDA","05_lda_dashboard.png")]:
         try:
-            st.image(img_file, use_column_width=True)
-        except:
-            pass
+            st.subheader(nama)
+            st.image(file, use_column_width=True)
+        except: pass
 
-# ======= TAB 4: SNA =======
-with tab4:
-    st.header("Social Network Analysis")
+# ======= TAB 5: SNA =======
+with tab5:
+    st.header("🕸️ Social Network Analysis")
+    st.subheader("Jaringan Mention & Deteksi Bot Sindikat")
+    
     try:
-        st.image("sna_komunitas_louvain.png", use_column_width=True)
-    except:
-        pass
+        st.image("sna_komunitas_louvain.png", caption="Komunitas Louvain - Deteksi Sindikat Bot", use_column_width=True)
+    except: pass
     try:
-        st.image("wordcloud_promosi_vs_korban.png", use_column_width=True)
-    except:
-        pass
+        st.image("wordcloud_promosi_vs_korban.png", caption="WordCloud: Promosi vs Korban", use_column_width=True)
+    except: pass
+    
     try:
         df_sna = pd.read_csv("sna_akun_mencurigakan.csv")
+        st.subheader("🚨 Akun Mencurigakan (Bot Kandidat)")
+        st.write(f"Total akun mencurigakan: **{len(df_sna)}**")
         st.dataframe(df_sna)
-    except:
-        pass
+    except: pass
+    
+    st.subheader("📊 Top 10 Akun Paling Aktif (Degree Centrality)")
+    mention_list = []
+    for text in df["full_text"].dropna():
+        mentions = re.findall(r"@(\S+)", text)
+        mention_list.extend([m.rstrip(".,;:!?").lower() for m in mentions])
+    if mention_list:
+        top_mentions = Counter(mention_list).most_common(10)
+        df_mentions = pd.DataFrame(top_mentions, columns=["Akun","Jumlah Mention"])
+        st.bar_chart(df_mentions.set_index("Akun"))
+        st.dataframe(df_mentions)
