@@ -56,7 +56,7 @@ with tab1:
     st.markdown("---")
     with st.expander("📝 Catatan Presentasi - Tab Data", expanded=True):
         st.info("""
-        **[CATATAN PRESENTER]**
+        ****
         
         Dataset yang kami gunakan berisi **315 tweet** yang dikumpulkan dari Twitter/X 
         menggunakan kata kunci seputar pinjaman online ilegal seperti *pinjol ilegal*, 
@@ -91,7 +91,7 @@ with tab2:
     st.markdown("---")
     with st.expander("📝 Catatan Presentasi - Tab Klasifikasi", expanded=True):
         st.info("""
-        **[CATATAN PRESENTER]**
+        ****
         
         Pada tab ini kami melakukan **klasifikasi otomatis** untuk memisahkan dua jenis tweet:
         
@@ -140,7 +140,7 @@ with tab3:
     st.markdown("---")
     with st.expander("📝 Catatan Presentasi - Tab Sentimen", expanded=True):
         st.info("""
-        **[CATATAN PRESENTER]**
+        ****
         
         Analisis sentimen menggunakan metode **INSET Lexicon** — yaitu kamus kata 
         berbahasa Indonesia yang sudah diberi skor positif dan negatif.
@@ -182,7 +182,7 @@ with tab4:
     st.markdown("---")
     with st.expander("📝 Catatan Presentasi - Tab LDA", expanded=True):
         st.info("""
-        **[CATATAN PRESENTER]**
+        ****
         
         **LDA (Latent Dirichlet Allocation)** adalah metode *topic modeling* yang 
         mengelompokkan tweet ke dalam beberapa topik berdasarkan pola kata yang muncul bersama.
@@ -229,7 +229,7 @@ with tab5:
     st.markdown("---")
     with st.expander("📝 Catatan Presentasi - Tab SNA", expanded=True):
         st.info("""
-        **[CATATAN PRESENTER]**
+        ****
         
         **Social Network Analysis (SNA)** digunakan untuk membongkar jaringan akun 
         yang terlibat dalam penyebaran konten pinjol ilegal di Twitter.
