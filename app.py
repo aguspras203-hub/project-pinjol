@@ -2,16 +2,14 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 from collections import Counter
-import ast, re
+import re
 
 st.set_page_config(page_title="Dashboard Pinjol - Kelompok 10", layout="wide")
 st.title("🔍 Deteksi Dini & Pola Penyebaran Hoax Pinjol Ilegal")
-st.markdown("**Analisis Teks Media Sosial | Universitas Budi Luhur**")
+st.markdown("**Analisis Teks Media Sosial | Universitas Budi Luhur | Kelompok 10**")
 st.markdown("---")
 
-# Load data
 @st.cache_data
 def load_data():
     df = pd.read_csv("Pinjol_inset_labeled_final.csv")
@@ -20,15 +18,12 @@ def load_data():
 
 df = load_data()
 
-# ======= RINGKASAN =======
-st.subheader("📊 Ringkasan Dataset")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Tweet", len(df))
 col2.metric("Tweet Negatif", len(df[df["inset_sentiment"]=="Negative"]))
 col3.metric("Tweet Positif", len(df[df["inset_sentiment"]=="Positive"]))
 col4.metric("Tweet Netral", len(df[df["inset_sentiment"]=="Neutral"]))
 
-# Klasifikasi Promosi Bot vs Korban
 def classify_type(text):
     if isinstance(text, str):
         promo_keywords = ["pinjam", "dana cepat", "proses cepat", "hubungi", "wa", "whatsapp", "solusi", "terpercaya", "bunga rendah", "cair"]
@@ -46,19 +41,35 @@ df["kategori"] = df["full_text"].apply(classify_type)
 st.markdown("---")
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📁 Data", "🏷️ Klasifikasi", "💬 Sentimen", "🧠 LDA Topik", "🕸️ SNA"])
 
-# ======= TAB 1: DATA =======
+# ======= TAB 1 =======
 with tab1:
     st.header("Dataset Tweet Pinjol")
     st.write(f"Total: **{len(df)} tweet** | Periode: {df['created_at'].min().date()} s/d {df['created_at'].max().date()}")
-    search = st.text_input("🔎 Cari kata kunci di tweet:")
+    search = st.text_input("🔎 Cari kata kunci:")
     if search:
         filtered = df[df["full_text"].str.contains(search, case=False, na=False)]
         st.dataframe(filtered[["created_at","full_text","inset_sentiment","inset_score"]].reset_index(drop=True))
         st.write(f"Ditemukan: {len(filtered)} tweet")
     else:
         st.dataframe(df[["created_at","full_text","inset_sentiment","inset_score","kategori"]].reset_index(drop=True))
+    
+    st.markdown("---")
+    with st.expander("📝 Catatan Presentasi - Tab Data", expanded=True):
+        st.info("""
+        **[CATATAN PRESENTER]**
+        
+        Dataset yang kami gunakan berisi **315 tweet** yang dikumpulkan dari Twitter/X 
+        menggunakan kata kunci seputar pinjaman online ilegal seperti *pinjol ilegal*, 
+        *gagal bayar*, *galbay*, dan *solusi dana cepat*.
+        
+        Data dikumpulkan pada periode **Juni 2026** dan sudah melalui proses 
+        preprocessing seperti cleaning teks, tokenisasi, dan penghapusan stopwords.
+        
+        Kalian bisa gunakan fitur pencarian di atas untuk melihat tweet berdasarkan 
+        kata kunci tertentu secara langsung.
+        """)
 
-# ======= TAB 2: KLASIFIKASI =======
+# ======= TAB 2 =======
 with tab2:
     st.header("🏷️ Klasifikasi: Promosi Bot vs Keluhan Korban")
     col1, col2 = st.columns(2)
@@ -76,8 +87,28 @@ with tab2:
     filtered_kat = df[df["kategori"]==pilihan]
     st.write(f"Jumlah: **{len(filtered_kat)} tweet**")
     st.dataframe(filtered_kat[["created_at","full_text","inset_sentiment"]].reset_index(drop=True))
+    
+    st.markdown("---")
+    with st.expander("📝 Catatan Presentasi - Tab Klasifikasi", expanded=True):
+        st.info("""
+        **[CATATAN PRESENTER]**
+        
+        Pada tab ini kami melakukan **klasifikasi otomatis** untuk memisahkan dua jenis tweet:
+        
+        - 🤖 **Promosi/Bot Pinjol** → Tweet yang berisi tawaran pinjaman, kata-kata seperti 
+          "dana cepat", "proses mudah", "bunga rendah" — ini diduga berasal dari akun bot 
+          atau penyebar iklan pinjol ilegal.
+          
+        - 😢 **Keluhan Korban** → Tweet yang mengandung kata seperti "teror", "ancam", 
+          "sebar data", "gagal bayar" — ini merupakan curahan hati korban pinjol ilegal.
+          
+        - 📰 **Informasi/Netral** → Tweet berisi berita atau informasi umum tentang pinjol.
+        
+        Dengan klasifikasi ini, kita bisa membedakan mana konten berbahaya dan mana 
+        suara korban yang butuh perhatian.
+        """)
 
-# ======= TAB 3: SENTIMEN =======
+# ======= TAB 3 =======
 with tab3:
     st.header("💬 Analisis Sentimen (INSET Lexicon)")
     col1, col2 = st.columns(2)
@@ -105,8 +136,26 @@ with tab3:
     ax2.set_ylabel("Jumlah Tweet")
     ax2.set_title("Histogram Skor Sentimen")
     st.pyplot(fig2)
+    
+    st.markdown("---")
+    with st.expander("📝 Catatan Presentasi - Tab Sentimen", expanded=True):
+        st.info("""
+        **[CATATAN PRESENTER]**
+        
+        Analisis sentimen menggunakan metode **INSET Lexicon** — yaitu kamus kata 
+        berbahasa Indonesia yang sudah diberi skor positif dan negatif.
+        
+        Dari **315 tweet** yang dianalisis:
+        - Tweet **Negatif** mendominasi → menunjukkan bahwa mayoritas percakapan 
+          tentang pinjol di Twitter bernada negatif, baik dari korban maupun kritik publik.
+        - Tweet **Positif** kemungkinan berasal dari akun bot yang mempromosikan pinjol.
+        - Tweet **Netral** berisi berita atau informasi umum.
+        
+        Tren sentimen per hari menunjukkan kapan isu pinjol paling ramai dibicarakan.
+        Semakin negatif skor INSET, semakin kuat ekspresi negatif dalam tweet tersebut.
+        """)
 
-# ======= TAB 4: LDA =======
+# ======= TAB 4 =======
 with tab4:
     st.header("🧠 Analisis Topik LDA")
     try:
@@ -118,7 +167,7 @@ with tab4:
             st.bar_chart(topic_count)
         st.dataframe(df_lda.head(50))
     except:
-        st.info("File LDA tersedia dalam bentuk visualisasi gambar:")
+        pass
     
     for nama, file in [("Elbow Perplexity","01_lda_elbow.png"),
                         ("Top Words per Topik","02_lda_topwords.png"),
@@ -129,8 +178,25 @@ with tab4:
             st.subheader(nama)
             st.image(file, use_column_width=True)
         except: pass
+    
+    st.markdown("---")
+    with st.expander("📝 Catatan Presentasi - Tab LDA", expanded=True):
+        st.info("""
+        **[CATATAN PRESENTER]**
+        
+        **LDA (Latent Dirichlet Allocation)** adalah metode *topic modeling* yang 
+        mengelompokkan tweet ke dalam beberapa topik berdasarkan pola kata yang muncul bersama.
+        
+        Dari hasil LDA pada dataset pinjol ini, ditemukan beberapa klaster topik utama seperti:
+        - **Topik modus operandi** → kata-kata seperti "cair", "proses", "bunga", "tenor"
+        - **Topik keluhan korban** → kata-kata seperti "teror", "ancam", "sebar", "data pribadi"
+        - **Topik regulasi** → kata-kata seperti "OJK", "ilegal", "lapor", "blokir"
+        
+        Grafik **Elbow** digunakan untuk menentukan jumlah topik optimal.
+        **WordCloud** menampilkan kata yang paling sering muncul di setiap topik.
+        """)
 
-# ======= TAB 5: SNA =======
+# ======= TAB 5 =======
 with tab5:
     st.header("🕸️ Social Network Analysis")
     st.subheader("Jaringan Mention & Deteksi Bot Sindikat")
@@ -159,3 +225,24 @@ with tab5:
         df_mentions = pd.DataFrame(top_mentions, columns=["Akun","Jumlah Mention"])
         st.bar_chart(df_mentions.set_index("Akun"))
         st.dataframe(df_mentions)
+    
+    st.markdown("---")
+    with st.expander("📝 Catatan Presentasi - Tab SNA", expanded=True):
+        st.info("""
+        **[CATATAN PRESENTER]**
+        
+        **Social Network Analysis (SNA)** digunakan untuk membongkar jaringan akun 
+        yang terlibat dalam penyebaran konten pinjol ilegal di Twitter.
+        
+        Metode yang digunakan:
+        - **Degree Centrality** → mengukur seberapa banyak akun di-mention, 
+          semakin tinggi = semakin berpengaruh dalam jaringan.
+        - **Betweenness Centrality** → menemukan akun yang menjadi "jembatan" 
+          penyebaran informasi antar komunitas.
+        - **Algoritma Louvain** → mendeteksi komunitas/klaster akun yang saling 
+          berinteraksi, berguna untuk membongkar sindikat bot pinjol.
+        
+        Dari visualisasi graf, terlihat adanya **klaster akun yang saling me-mention** 
+        secara masif — ini merupakan indikasi kuat adanya jaringan bot terkoordinasi 
+        yang menyebarkan promosi pinjol ilegal.
+        """)
